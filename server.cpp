@@ -8,7 +8,7 @@ typedef long long llint;
 #define meanArrivalRate 5.0
 int numberOfUsers = 10;
 #define maxExecutionTime 50
-int K= 500;
+int K = 500;
 int numTasksPerUser = 100;
 #define generateDifferentCodeEverytime 0 // 0: Same data in every run 1: Different data in every run
 #define MaxTime 1e8
@@ -16,10 +16,11 @@ double init_failure_prob = 0.001;
 int heuristic_num = 0;
 int numberOfMachines = 10;
 default_random_engine generator;
-std::ofstream outputFile("output.txt", std::ios::out);
+std::ofstream outputFile("output.txt");
 int start = 5;
 int stop = 55;
 int step = 5;
+int reset_prob = 0;
 vector<vector<double>> data;
 
 class Task
@@ -136,7 +137,7 @@ public:
     int num_jobs_not_reliable;
     vector<int> jobs_failed;    // number of jobs failed on each machine
     vector<int> jobs_scheduled; // total number of jobs scheduled on each machine
-    // vector<int> m_finish; //finishing time of all machines
+    // vector<int> m_finish;    //finishing time of all machines
     vector<vector<Task>> machines_scheduling_history; // for history of scheduling
     vector<double> shared_trust;
     vector<vector<double>> direct_trust;
@@ -174,38 +175,39 @@ public:
 
     double heuristic(const Task &task, int machine_index)
     {
-        double cost = 1;  // random
-        if(heuristic_num == 0)
+        double cost = 1; // random
+        if (heuristic_num == 0)
         {
-            // cost /= task.arrivalTime;      // wrong measure but to check if weights are correct in gradient
             cost *= (task.executionTime) * ((0.3) * base_cost[machine_index] + (base_cost[machine_index] * shared_trust[machine_index] * shared_trust[machine_index])); // cost
             cost /= ((task.relativeDeadline - task.executionTime - task.arrivalTime));                                                                                  // srt (deadline)
-            cost *= (shared_trust[machine_index] - task.reliability);                                                                                                   // reliability
+            cost *= (direct_trust[machine_index][task.userInformation] - task.reliability);        
+            // cost = (0.3) * base_cost[machine_index] + base_cost[machine_index] * shared_trust[machine_index] * shared_trust[machine_index]  ;
+            // cost/= probability[machine_index];
+            // cost *= (1-pow(probability[machine_index],task.executionTime));                                                                        // reliability                                                                                                 // reliability
             return cost;
         }
-        else if(heuristic_num == 1)
+        else if (heuristic_num == 1)
+        {     
+            cost *= (task.executionTime) * ((0.3) * base_cost[machine_index] + (base_cost[machine_index] * shared_trust[machine_index] * shared_trust[machine_index]));                                                                                         // reliability
+            return cost;
+        }
+        else if (heuristic_num == 2)
         {
-            // cost /= task.arrivalTime;      // wrong measure but to check if weights are correct in gradient
-            cost *= (task.executionTime) * ((0.3) * base_cost[machine_index] + (base_cost[machine_index] * shared_trust[machine_index] * shared_trust[machine_index])); // cost                                                                                                   // reliability
+            cost /= ((task.relativeDeadline - task.executionTime - task.arrivalTime))*shared_trust[machine_index]; // srt (deadline)                                                                                                                                                                  // reliability
             return cost;
         }
-        else if(heuristic_num == 2)
+        else if (heuristic_num == 3)
         {
-            // cost /= task.arrivalTime;      // wrong measure but to check if weights are correct in gradient
-            cost /= ((task.relativeDeadline - task.executionTime - task.arrivalTime));                                                                                  // srt (deadline)                                                                                                 // reliability
+            // cost /= ((task.relativeDeadline - task.executionTime - task.arrivalTime))*shared_trust[machine_index];
+            cost *= (direct_trust[machine_index][task.userInformation] - task.reliability);    // reliability
             return cost;
         }
-        else if(heuristic_num == 3)
+        else 
         {
-            cost *= (shared_trust[machine_index] - task.reliability);                                                                                                   // reliability
-            return cost;
-        }
-        else //heuristic_num == 4
-        {                                                                                             
-            return cost;
+            // random
+            return cost;    
         }
     }
-
 
     void schedule1(int time, set<int> &free_machines)
     {
@@ -292,8 +294,9 @@ public:
     {
         // random_device rd;
         // mt19937 gen(rd());
-        bernoulli_distribution d(p);
-        return d(generator) ? 0 : 1;
+        // bernoulli_distribution d(p);
+        return 1;
+        // return d(generator) ? 0 : 1;
     }
     void server_start(vector<Task> arrivingTasks) // sorted wrt arrival time
     {
@@ -322,10 +325,23 @@ public:
                 {
                     // machine is not free
                     // generate 0 with probability p and 1 with probability 1-p
-                    int result = generateRandomWithProbability(probability[machine_index]);
+                    vector<bool> p(100, 1);
+                    int rand_index = 5;
+                    for (int i = 0; i < probability[machine_index]*100; i++)
+                    {
+                        p[rand_index] = 0;
+                        rand_index = rand_index * 1000009 + 435321;
+                        rand_index %= 1000081;
+                        rand_index %= 100;
+                    }
+
+                    int result = p[time % 100];
+                    // int result = generateRandomWithProbability(probability[machine_index]);
                     if (result == 0) // means task has failed
                     {
                         machines_scheduling_history[machine_index].back().finishingTime = time;
+                        double cost = cost_function(machines_scheduling_history[machine_index].back(), machine_index);
+                        total_cost+=cost;
                         num_of_jobs_failed++;
                         jobs_failed[machine_index]++;
                         // cout<<"Task arriving at "<<machines_scheduling_history[machine_index].back().arrivalTime<<" in machine "<<machine_index<<" failed"<<endl;
@@ -343,20 +359,24 @@ public:
                     if (result == 0) // means task has failed
                     {
                         machines_scheduling_history[machine_index].back().finishingTime = time;
+                        double cost = cost_function(machines_scheduling_history[machine_index].back(), machine_index);
+                        total_cost+=cost;
                         num_of_jobs_failed++;
                         jobs_failed[machine_index]++;
                         // cout<<"Task arriving at "<<machines_scheduling_history[machine_index].back().arrivalTime<<" in machine "<<machine_index<<" failed"<<endl;
                         // updating direct trust here as task got completed here
                         int user_index = machines_scheduling_history[machine_index].back().userInformation;
-                        direct_trust[machine_index][user_index] = (num_of_successful_tasks[machine_index][user_index] * 1.0 / num_of_tasks[machine_index][user_index]);
+                        direct_trust[machine_index][user_index] = ((50+num_of_successful_tasks[machine_index][user_index] * 1.0) / (100+num_of_tasks[machine_index][user_index]));
                         // task has failed and its finishing time is not start time + execution time
                     }
 
                     else
                     {
                         int user_index = machines_scheduling_history[machine_index].back().userInformation;
+                        double cost = cost_function(machines_scheduling_history[machine_index].back(), machine_index);
+                        total_cost+=cost;
                         num_of_successful_tasks[machine_index][user_index]++;
-                        direct_trust[machine_index][user_index] = (num_of_successful_tasks[machine_index][user_index] * 1.0 / num_of_tasks[machine_index][user_index]);
+                        direct_trust[machine_index][user_index] = ((50+num_of_successful_tasks[machine_index][user_index] * 1.0) / (100+num_of_tasks[machine_index][user_index]));
                     }
                 }
             }
@@ -407,7 +427,7 @@ public:
             }
         }
     }
-    void analyze(double i,int code,int heuristic_num = 0)
+    void analyze(double i, int code, int heuristic_num = 0)
     {
         double total_tasks = (numberOfUsers * numTasksPerUser);
         // cout << "Numner of Jobs failed while executing are : " << num_of_jobs_failed << endl;
@@ -423,14 +443,21 @@ public:
         double reliable_req = (num_jobs_not_reliable * 1.0) / total_tasks;
         double deadline_req = (num_jobs_not_scheduled * 1.0 - num_jobs_not_reliable) / total_tasks; // jobs failed due to deadline
         // outputFile << deadline_req << endl;
-        cout<< heuristic_num<<" " << i << " " << deadline_req << endl;
-        if (code==1) data.push_back({i, (double)deadline_req});
-        if (code==2) data.push_back({i, (double)deadline_req});
-        if (code==3) data.push_back({i, (double)num_of_jobs_failed});
-        if (code==4) data.push_back({i, (double)reliable_req});
-        if (code==5) data.push_back({i, (double)deadline_req});
-        if (code==6) data.push_back({i, (double)deadline_req});
-        if (code==7) data.push_back({i, avg_cost, reliable_req, deadline_req});
+        // cout<< heuristic_num<<" " << i << " " << deadline_req << endl;
+        if (code == 1)
+            data.push_back({i, (double)deadline_req});
+        if (code == 2)
+            data.push_back({i, (double)deadline_req});
+        if (code == 3)
+            data.push_back({i, (double)num_of_jobs_failed});
+        if (code == 4)
+            data.push_back({i, (double)reliable_req});
+        if (code == 5)
+            data.push_back({i, (double)deadline_req});
+        if (code == 6)
+            data.push_back({i, (double)deadline_req});
+        if (code == 7)
+            data.push_back({i, avg_cost, reliable_req, deadline_req});
     }
 };
 
@@ -446,15 +473,16 @@ void writeToCSV(const vector<vector<double>> &data, const std::string &filename)
 
     for (const auto &pair : data)
     {
-        int i=0;
-        for(auto x:pair){
-            if(i==pair.size() - 1)
-            outputFile<<x;
+        int i = 0;
+        for (auto x : pair)
+        {
+            if (i == pair.size() - 1)
+                outputFile << x;
             else
-            outputFile << x<<",";
+                outputFile << x << ",";
             i++;
         }
-        outputFile<<endl;
+        outputFile << endl;
     }
 
     outputFile.close();
@@ -486,36 +514,36 @@ int main()
         heuristic_num = 0;
         Server server1(numberOfMachines, numberOfUsers);
         server1.server_start(arrivingTasks);
-        server1.analyze(i,1,0);
+        server1.analyze(i, 1, 0);
 
         heuristic_num = 1;
         Server server2(numberOfMachines, numberOfUsers);
         server2.server_start(arrivingTasks);
-        server2.analyze(i,1,1);
+        server2.analyze(i, 1, 1);
 
         heuristic_num = 2;
         Server server3(numberOfMachines, numberOfUsers);
         server3.server_start(arrivingTasks);
-        server3.analyze(i,1,2);
+        server3.analyze(i, 1, 2);
 
         heuristic_num = 3;
         Server server4(numberOfMachines, numberOfUsers);
         server4.server_start(arrivingTasks);
-        server4.analyze(i,1,3);
+        server4.analyze(i, 1, 3);
 
         heuristic_num = 4;
         Server server5(numberOfMachines, numberOfUsers);
         server5.server_start(arrivingTasks);
-        server5.analyze(i,1,4);
+        server5.analyze(i, 1, 4);
     }
-    data.push_back({-1,-1});
+    data.push_back({-1, -1});
     writeToCSV(data, "output.csv");
 
     data.clear();
     start = 100;
     stop = 601;
     step = 50;
-    K= 100;
+    K = 100;
 
     numberOfMachines = 50;
     // K vs no of jobs failed due to deadline
@@ -525,103 +553,103 @@ int main()
         heuristic_num = 0;
         Server server1(numberOfMachines, numberOfUsers);
         server1.server_start(arrivingTasks);
-        server1.analyze(i,2,0);
+        server1.analyze(i, 2, 0);
 
         heuristic_num = 1;
         Server server2(numberOfMachines, numberOfUsers);
         server2.server_start(arrivingTasks);
-        server2.analyze(i,2,1);
+        server2.analyze(i, 2, 1);
 
         heuristic_num = 2;
         Server server3(numberOfMachines, numberOfUsers);
         server3.server_start(arrivingTasks);
-        server3.analyze(i,2,2);
+        server3.analyze(i, 2, 2);
 
         heuristic_num = 3;
         Server server4(numberOfMachines, numberOfUsers);
         server4.server_start(arrivingTasks);
-        server4.analyze(i,2,3);
+        server4.analyze(i, 2, 3);
 
         heuristic_num = 4;
         Server server5(numberOfMachines, numberOfUsers);
         server5.server_start(arrivingTasks);
-        server5.analyze(i,2,4);
+        server5.analyze(i, 2, 4);
     }
 
-    data.push_back({-1,-1});
+    data.push_back({-1, -1});
     writeToCSV(data, "output.csv");
 
     data.clear();
     start = 1;
     stop = 52;
     step = 5;
-    //failure prob vs jobs failed while executing
+    // failure prob vs jobs failed while executing
     for (int i = start; i <= stop; i += step)
     {
-        init_failure_prob = (i*1.0)/1000;
+        init_failure_prob = (i * 1.0) / 1000;
         heuristic_num = 0;
         Server server1(numberOfMachines, numberOfUsers);
         server1.server_start(arrivingTasks);
-        server1.analyze(i,3,0);
+        server1.analyze(i, 3, 0);
 
         heuristic_num = 1;
         Server server2(numberOfMachines, numberOfUsers);
         server2.server_start(arrivingTasks);
-        server2.analyze(i,3,1);
+        server2.analyze(i, 3, 1);
 
         heuristic_num = 2;
         Server server3(numberOfMachines, numberOfUsers);
         server3.server_start(arrivingTasks);
-        server3.analyze(i,3,2);
+        server3.analyze(i, 3, 2);
 
         heuristic_num = 3;
         Server server4(numberOfMachines, numberOfUsers);
         server4.server_start(arrivingTasks);
-        server4.analyze(i,3,3);
+        server4.analyze(i, 3, 3);
 
         heuristic_num = 4;
         Server server5(numberOfMachines, numberOfUsers);
         server5.server_start(arrivingTasks);
-        server5.analyze(i,3,4);
+        server5.analyze(i, 3, 4);
     }
 
-    data.push_back({-1,-1});
+    data.push_back({-1, -1});
     writeToCSV(data, "output.csv");
 
     data.clear();
     start = 15;
     stop = 65;
     step = 5;
-    //failure prob vs jobs failed due to reliability
-    for(int i=start; i<=stop; i+= step)
-    {   //will increase because shared trust will decrease.
-        init_failure_prob = (i*1.0)/1000;
+    // failure prob vs jobs failed due to reliability
+    for (int i = start; i <= stop; i += step)
+    { // will increase because shared trust will decrease.
+        init_failure_prob = (i * 1.0) / 1000;
         heuristic_num = 0;
         Server server1(numberOfMachines, numberOfUsers);
         server1.server_start(arrivingTasks);
-        server1.analyze(i,4,0);
+        server1.analyze(i, 4, 0);
 
         heuristic_num = 1;
         Server server2(numberOfMachines, numberOfUsers);
         server2.server_start(arrivingTasks);
-        server2.analyze(i,4,1);
+        server2.analyze(i, 4, 1);
 
         heuristic_num = 2;
         Server server3(numberOfMachines, numberOfUsers);
         server3.server_start(arrivingTasks);
-        server3.analyze(i,4,2);
+        server3.analyze(i, 4, 2);
 
         heuristic_num = 3;
         Server server4(numberOfMachines, numberOfUsers);
         server4.server_start(arrivingTasks);
-        server4.analyze(i,4,3);
+        server4.analyze(i, 4, 3);
 
         heuristic_num = 4;
         Server server5(numberOfMachines, numberOfUsers);
         server5.server_start(arrivingTasks);
-        server5.analyze(i,4,4);
+        server5.analyze(i, 4, 4);
     }
-    data.push_back({-1,-1});
+    data.push_back({-1, -1});
     writeToCSV(data, "output.csv");
 
     data.clear();
@@ -631,8 +659,8 @@ int main()
 
     init_failure_prob = 0.001;
     K = 500;
-    for(int i=start; i<=stop; i+= step)
-    {   //will increase because shared trust will decrease.
+    for (int i = start; i <= stop; i += step)
+    { // will increase because shared trust will decrease.
         numTasksPerUser = i;
         Users users(numberOfUsers, meanArrivalRate, numTasksPerUser);
         vector<vector<Task>> allUserTasks = users.generateAllUserTasks();
@@ -647,29 +675,29 @@ int main()
         heuristic_num = 0;
         Server server1(numberOfMachines, numberOfUsers);
         server1.server_start(arrivingTasks);
-        server1.analyze(i,5,0);
+        server1.analyze(i, 5, 0);
 
         heuristic_num = 1;
         Server server2(numberOfMachines, numberOfUsers);
         server2.server_start(arrivingTasks);
-        server2.analyze(i,5,1);
+        server2.analyze(i, 5, 1);
 
         heuristic_num = 2;
         Server server3(numberOfMachines, numberOfUsers);
         server3.server_start(arrivingTasks);
-        server3.analyze(i,5,2);
+        server3.analyze(i, 5, 2);
 
         heuristic_num = 3;
         Server server4(numberOfMachines, numberOfUsers);
         server4.server_start(arrivingTasks);
-        server4.analyze(i,5,3);
+        server4.analyze(i, 5, 3);
 
         heuristic_num = 4;
         Server server5(numberOfMachines, numberOfUsers);
         server5.server_start(arrivingTasks);
-        server5.analyze(i,5,4);
+        server5.analyze(i, 5, 4);
     }
-    data.push_back({-1,-1});
+    data.push_back({-1, -1});
     writeToCSV(data, "output.csv");
 
     data.clear();
@@ -677,11 +705,11 @@ int main()
     start = 15;
     stop = 80;
     step = 5;
-    //failure prob vs jobs failed due to deadline
+    // failure prob vs jobs failed due to deadline
     init_failure_prob = 0.001;
     K = 500;
-    for(int i=start; i<=stop; i+= step)
-    {   //will increase because shared trust will decrease.
+    for (int i = start; i <= stop; i += step)
+    { // will increase because shared trust will decrease.
         numberOfUsers = i;
         Users users(numberOfUsers, meanArrivalRate, numTasksPerUser);
         vector<vector<Task>> allUserTasks = users.generateAllUserTasks();
@@ -696,29 +724,29 @@ int main()
         heuristic_num = 0;
         Server server1(numberOfMachines, numberOfUsers);
         server1.server_start(arrivingTasks);
-        server1.analyze(i,6,0);
+        server1.analyze(i, 6, 0);
 
         heuristic_num = 1;
         Server server2(numberOfMachines, numberOfUsers);
         server2.server_start(arrivingTasks);
-        server2.analyze(i,6,1);
+        server2.analyze(i, 6, 1);
 
         heuristic_num = 2;
         Server server3(numberOfMachines, numberOfUsers);
         server3.server_start(arrivingTasks);
-        server3.analyze(i,6,2);
+        server3.analyze(i, 6, 2);
 
         heuristic_num = 3;
         Server server4(numberOfMachines, numberOfUsers);
         server4.server_start(arrivingTasks);
-        server4.analyze(i,6,3);
+        server4.analyze(i, 6, 3);
 
         heuristic_num = 4;
         Server server5(numberOfMachines, numberOfUsers);
         server5.server_start(arrivingTasks);
-        server5.analyze(i,6,4);
+        server5.analyze(i, 6, 4);
     }
-    data.push_back({-1,-1});
+    data.push_back({-1, -1});
     writeToCSV(data, "output.csv");
 
     data.clear();
@@ -732,7 +760,7 @@ int main()
     }
 
     sort(arrivingTasks.begin(), arrivingTasks.end(), compareTasksByArrivalTime);
-    K=50;
+    K = 50;
     start = 5;
     stop = 75;
     step = 5;
@@ -743,29 +771,29 @@ int main()
         heuristic_num = 0;
         Server server1(numberOfMachines, numberOfUsers);
         server1.server_start(arrivingTasks);
-        server1.analyze(i,7,0);
+        server1.analyze(i, 7, 0);
 
         heuristic_num = 1;
         Server server2(numberOfMachines, numberOfUsers);
         server2.server_start(arrivingTasks);
-        server2.analyze(i,7,1);
+        server2.analyze(i, 7, 1);
 
         heuristic_num = 2;
         Server server3(numberOfMachines, numberOfUsers);
         server3.server_start(arrivingTasks);
-        server3.analyze(i,7,2);
+        server3.analyze(i, 7, 2);
 
         heuristic_num = 3;
         Server server4(numberOfMachines, numberOfUsers);
         server4.server_start(arrivingTasks);
-        server4.analyze(i,7,3);
+        server4.analyze(i, 7, 3);
 
         heuristic_num = 4;
         Server server5(numberOfMachines, numberOfUsers);
         server5.server_start(arrivingTasks);
-        server5.analyze(i,7,4);     //number of machines vs cost
+        server5.analyze(i, 7, 4); // number of machines vs cost
     }
-    data.push_back({-1,-1});
+    data.push_back({-1, -1});
     writeToCSV(data, "output.csv");
     data.clear();
 
@@ -774,11 +802,11 @@ int main()
     start = 35;
     stop = 100;
     step = 5;
-    //failure prob vs jobs failed due to deadline
+    // failure prob vs jobs failed due to deadline
     init_failure_prob = 0.01;
     K = 500;
-    for(int i=start; i<=stop; i+= step)
-    {   //will increase because shared trust will decrease.
+    for (int i = start; i <= stop; i += step)
+    { // will increase because shared trust will decrease.
         numberOfUsers = i;
         Users users(numberOfUsers, meanArrivalRate, numTasksPerUser);
         vector<vector<Task>> allUserTasks = users.generateAllUserTasks();
@@ -790,31 +818,32 @@ int main()
 
         sort(arrivingTasks.begin(), arrivingTasks.end(), compareTasksByArrivalTime);
 
+        heuristic_num = 0;
         Server server1(numberOfMachines, numberOfUsers);
         server1.server_start(arrivingTasks);
-        server1.analyze(i,7,0);
+        server1.analyze(i, 7, 0);
 
         heuristic_num = 1;
         Server server2(numberOfMachines, numberOfUsers);
         server2.server_start(arrivingTasks);
-        server2.analyze(i,7,1);
+        server2.analyze(i, 7, 1);
 
         heuristic_num = 2;
         Server server3(numberOfMachines, numberOfUsers);
         server3.server_start(arrivingTasks);
-        server3.analyze(i,7,2);
+        server3.analyze(i, 7, 2);
 
         heuristic_num = 3;
         Server server4(numberOfMachines, numberOfUsers);
         server4.server_start(arrivingTasks);
-        server4.analyze(i,7,3);
+        server4.analyze(i, 7, 3);
 
         heuristic_num = 4;
         Server server5(numberOfMachines, numberOfUsers);
         server5.server_start(arrivingTasks);
-        server5.analyze(i,7,4);      //number of Users vs cost
+        server5.analyze(i, 7, 4); // number of Users vs cost
     }
-    data.push_back({-1,-1});
+    data.push_back({-1, -1});
     writeToCSV(data, "output.csv");
 
     data.clear();
@@ -825,11 +854,11 @@ int main()
     start = 35;
     stop = 100;
     step = 5;
-    //failure prob vs jobs failed due to deadline
+    // failure prob vs jobs failed due to deadline
     init_failure_prob = 0.01;
     K = 500;
-    for(int i=start; i<=stop; i+= step)
-    {   //will increase because shared trust will decrease.
+    for (int i = start; i <= stop; i += step)
+    { // will increase because shared trust will decrease.
         numTasksPerUser = i;
         Users users(numberOfUsers, meanArrivalRate, numTasksPerUser);
         vector<vector<Task>> allUserTasks = users.generateAllUserTasks();
@@ -841,68 +870,70 @@ int main()
 
         sort(arrivingTasks.begin(), arrivingTasks.end(), compareTasksByArrivalTime);
 
+        heuristic_num = 0;
         Server server1(numberOfMachines, numberOfUsers);
         server1.server_start(arrivingTasks);
-        server1.analyze(i,7,0);
+        server1.analyze(i, 7, 0);
 
         heuristic_num = 1;
         Server server2(numberOfMachines, numberOfUsers);
         server2.server_start(arrivingTasks);
-        server2.analyze(i,7,1);
+        server2.analyze(i, 7, 1);
 
         heuristic_num = 2;
         Server server3(numberOfMachines, numberOfUsers);
         server3.server_start(arrivingTasks);
-        server3.analyze(i,7,2);
+        server3.analyze(i, 7, 2);
 
         heuristic_num = 3;
         Server server4(numberOfMachines, numberOfUsers);
         server4.server_start(arrivingTasks);
-        server4.analyze(i,7,3);
+        server4.analyze(i, 7, 3);
 
         heuristic_num = 4;
         Server server5(numberOfMachines, numberOfUsers);
         server5.server_start(arrivingTasks);
-        server5.analyze(i,7,4);        //number of tasks per user vs cost
+        server5.analyze(i, 7, 4); // number of tasks per user vs cost
     }
-    data.push_back({-1,-1});
+    data.push_back({-1, -1});
     writeToCSV(data, "output.csv");
 
     data.clear();
-    K=50;
+    K = 50;
     start = 50;
-    stop = 500;
-    step = 50;
+    stop = 350;
+    step = 40;
     numberOfMachines = 10;
     init_failure_prob = 0.02;
     for (int i = start; i <= stop; i += step)
     {
         K = i;
+        heuristic_num = 0;
         Server server1(numberOfMachines, numberOfUsers);
         server1.server_start(arrivingTasks);
-        server1.analyze(i,7,0);
+        server1.analyze(i, 7, 0);
 
         heuristic_num = 1;
         Server server2(numberOfMachines, numberOfUsers);
         server2.server_start(arrivingTasks);
-        server2.analyze(i,7,1);
+        server2.analyze(i, 7, 1);
 
         heuristic_num = 2;
         Server server3(numberOfMachines, numberOfUsers);
         server3.server_start(arrivingTasks);
-        server3.analyze(i,7,2);
+        server3.analyze(i, 7, 2);
 
         heuristic_num = 3;
         Server server4(numberOfMachines, numberOfUsers);
         server4.server_start(arrivingTasks);
-        server4.analyze(i,7,3);
+        server4.analyze(i, 7, 3);
 
         heuristic_num = 4;
         Server server5(numberOfMachines, numberOfUsers);
         server5.server_start(arrivingTasks);
-        server5.analyze(i,7,4);      //K vs cost
+        server5.analyze(i, 7, 4); // K vs cost
     }
-    data.push_back({-1,-1});
+    data.push_back({-1, -1});
     writeToCSV(data, "output.csv");
     data.clear();
 
