@@ -355,7 +355,18 @@ public:
                 { // checking whether task is successful, by checking whether startTime + executionTime is equal to time
 
                     // generate 0 with probability p and 1 with probability 1-p
-                    int result = generateRandomWithProbability(probability[machine_index]);
+                     vector<bool> p(100, 1);
+                    int rand_index = 5;
+                    for (int i = 0; i < probability[machine_index]*100; i++)
+                    {
+                        p[rand_index] = 0;
+                        rand_index = rand_index * 1000009 + 435321;
+                        rand_index %= 1000081;
+                        rand_index %= 100;
+                    }
+
+                    int result = p[time % 100];
+                    
                     if (result == 0) // means task has failed
                     {
                         machines_scheduling_history[machine_index].back().finishingTime = time;
