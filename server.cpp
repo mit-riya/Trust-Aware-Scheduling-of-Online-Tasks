@@ -347,7 +347,7 @@ public:
                         // cout<<"Task arriving at "<<machines_scheduling_history[machine_index].back().arrivalTime<<" in machine "<<machine_index<<" failed"<<endl;
                         // updating direct trust here as task got completed here
                         int user_index = machines_scheduling_history[machine_index].back().userInformation;
-                        direct_trust[machine_index][user_index] = (num_of_successful_tasks[machine_index][user_index] * 1.0 / num_of_tasks[machine_index][user_index]);
+                        direct_trust[machine_index][user_index] = ((50+num_of_successful_tasks[machine_index][user_index] * 1.0) / (100 +num_of_tasks[machine_index][user_index]));
                         // task has failed and its finishing time is not start time + execution time
                     }
                 }
