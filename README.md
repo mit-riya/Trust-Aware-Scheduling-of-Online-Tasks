@@ -40,13 +40,13 @@ This pdf contains information about how our approach to solving this problems an
 
 #### Sahil Mehul Dhanayak
 
-- Email - [aditya.cse21@iitg.ac.in](mailto:aditya.cse21@iitg.ac.in)
-- Github - [guptaaditya30121](https://github.com/guptaaditya30121)
+- Email - [d.sahil@iitg.ac.in](mailto:d.sahil@iitg.ac.in)
+- Github - [SahilDanayak](https://github.com/SahilDanayak)
 
 #### Riya Mittal
 
-- Email - [aditya.cse21@iitg.ac.in](mailto:aditya.cse21@iitg.ac.in)
-- Github - [guptaaditya30121](https://github.com/guptaaditya30121)
+- Email - [m.riya@iitg.ac.in](mailto:m.riya@iitg.ac.in)
+- Github - [mit-riya](https://github.com/mit-riya)
 
 #### Aditya Gupta
 
