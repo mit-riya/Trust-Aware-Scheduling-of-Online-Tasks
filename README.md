@@ -7,7 +7,7 @@ shared trust values and individual trust ratings from users.
 ## Run the code
 Run the file named server_without_forloop.cpp
 ```bash
-g++ -std=c++17 server_without_forloop.cpp
+g++ -std=c++17 server_simulation.cpp
 ```
 ```bash
 ./a.out
