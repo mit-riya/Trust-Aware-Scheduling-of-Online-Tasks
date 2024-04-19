@@ -5,7 +5,7 @@ shared trust values and individual trust ratings from users.
 ---
 
 ## Run the code
-Run the file named server_without_forloop.cpp
+Run the file named server_simulation.cpp
 ```bash
 g++ -std=c++17 server_simulation.cpp
 ```
@@ -23,7 +23,7 @@ g++ -std=c++17 server.cpp
 
 Run the file named
 ```bash
-python Untitled.ipynb
+python Plot.ipynb
 ```
 
 ## Different Files
