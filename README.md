@@ -29,9 +29,9 @@ python Untitled.ipynb
 ## Different Files
 ### server.cpp
 This file contains the code for the server with simulations being run on different input values and it gives different outputs corresponding to it. The output given by this file is printed in output.csv, which is further used by Untitled.ipynb to analyze results.
-### server_without_forloop.cpp
+### server_simulation.cpp
 This file contains the code for the server with only one instance being run on it. This file can be run by changing the input fields defined globally at the beginning of the cpp file. The output of this file is printed on the terminal itself
-### Untitled.ipynb
+### Plot.ipynb
 This python notebook takes input from the CSV file and makes different graphs required to analyze different output given by different heuristics and input values
 ### HPC_Project.pdf
 This pdf contains information about how our approach to solving this problems and different heuristics we have used.
