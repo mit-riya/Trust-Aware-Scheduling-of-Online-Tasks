@@ -49,9 +49,6 @@ int step = 5;
 // Reset probability
 int reset_prob = 0;
 
-// Data vector
-vector<vector<double>> data;
-
 // Task class
 class Task
 {
@@ -478,7 +475,11 @@ int main()
 
     // Sort tasks by arrival time
     sort(arrivingTasks.begin(), arrivingTasks.end(), compareTasksByArrivalTime);
-
+    for (const auto task : arrivingTasks)
+    {
+        cout << "Arrival Time: " << task.arrivalTime << ", Execution Time: " << task.executionTime
+                << ", User Information: " << task.userInformation << ", Relative Deadline: " << task.relativeDeadline << endl;
+    }
     // Create an instance of the Server class
     Server server(numberOfMachines, numberOfUsers);
 

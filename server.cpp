@@ -21,7 +21,7 @@ int start = 5;
 int stop = 55;
 int step = 5;
 int reset_prob = 0;
-vector<vector<double>> data;
+vector<vector<double>> data_store;
 
 class Task
 {
@@ -64,9 +64,7 @@ public:
         random_device rd;
         if (generateDifferentCodeEverytime)
             timeSeed = chrono::system_clock::now().time_since_epoch().count(); // Seed with current time
-        // generator.seed(rd() + userId + timeSeed);                              // Seed the random number generator
         generator.seed(userId + timeSeed); // Seed the random number generator
-        // generator.seed(userId);
     }
 
     // Generate a vector of tasks
@@ -96,6 +94,7 @@ private:
 public:
     Users(int numUsers, double mean, int numTasks) : numUsers(numUsers), arrivalRate(mean), numTasks(numTasks) {}
 
+    // function to generate all the task
     vector<vector<Task>> generateAllUserTasks()
     {
         vector<vector<Task>> allUserTasks;
@@ -113,11 +112,6 @@ bool compareTasksByArrivalTime(const Task &task1, const Task &task2)
 {
     return task1.arrivalTime < task2.arrivalTime;
 }
-
-// bool compareTasksBySRT(const Task &task1, const Task &task2)
-// {
-//     return task1.relativeDeadline - task1.executionTime -task1.arrivalTime < task2.relativeDeadline - task2.executionTime -task2.arrivalTime;
-// }
 
 bool sort_by_heuristic(const pair<double, pair<int, Task *>> &task1, const pair<double, pair<int, Task *>> &task2)
 {
@@ -137,7 +131,6 @@ public:
     int num_jobs_not_reliable;
     vector<int> jobs_failed;    // number of jobs failed on each machine
     vector<int> jobs_scheduled; // total number of jobs scheduled on each machine
-    // vector<int> m_finish;    //finishing time of all machines
     vector<vector<Task>> machines_scheduling_history; // for history of scheduling
     vector<double> shared_trust;
     vector<vector<double>> direct_trust;
@@ -150,7 +143,6 @@ public:
     {
         this->num_of_machines = num_of_machines;
         this->num_of_users = num_of_users;
-        // m_finish.resize(num_of_machines);
         machines_scheduling_history.resize(num_of_machines);
         shared_trust.resize(num_of_machines, 0.5);
         direct_trust.resize(num_of_machines, vector<double>(num_of_users + 1, 0.5)); // indexing of users is with 1
@@ -169,21 +161,18 @@ public:
     {
         // assuming base = 30% of base cost for now
         double cost = (task.finishingTime - task.startingTime) * ((0.3) * base_cost[machine_index] + (base_cost[machine_index] * shared_trust[machine_index] * shared_trust[machine_index]));
-        // cout<<"For task arriving at "<<task.arrivalTime<<" finishing at "<<task.finishingTime-task.startingTime<<" "<<task.executionTime<<" cost is "<<cost<<endl;
         return cost;
     }
 
     double heuristic(const Task &task, int machine_index)
     {
         double cost = 1; // random
+        //different heuristic according to different requirement
         if (heuristic_num == 0)
         {
             cost *= (task.executionTime) * ((0.3) * base_cost[machine_index] + (base_cost[machine_index] * shared_trust[machine_index] * shared_trust[machine_index])); // cost
             cost /= ((task.relativeDeadline - task.executionTime - task.arrivalTime));                                                                                  // srt (deadline)
-            cost *= (direct_trust[machine_index][task.userInformation] - task.reliability);        
-            // cost = (0.3) * base_cost[machine_index] + base_cost[machine_index] * shared_trust[machine_index] * shared_trust[machine_index]  ;
-            // cost/= probability[machine_index];
-            // cost *= (1-pow(probability[machine_index],task.executionTime));                                                                        // reliability                                                                                                 // reliability
+            cost *= (direct_trust[machine_index][task.userInformation] - task.reliability);                                                                          // reliability                                                                                                 // reliability
             return cost;
         }
         else if (heuristic_num == 1)
@@ -198,17 +187,15 @@ public:
         }
         else if (heuristic_num == 3)
         {
-            // cost /= ((task.relativeDeadline - task.executionTime - task.arrivalTime))*shared_trust[machine_index];
             cost *= (direct_trust[machine_index][task.userInformation] - task.reliability);    // reliability
             return cost;
         }
         else 
         {
-            // random
             return cost;    
         }
     }
-
+    //this function is used to schedule the jobs in waiting_area to free_machines
     void schedule1(int time, set<int> &free_machines)
     {
         for (auto it = waiting_area.begin(); it != waiting_area.end();)
@@ -227,12 +214,6 @@ public:
                 if (flag == 0)
                 {
                     num_jobs_not_reliable++;
-                    // cout << "Task arriving at " << it->arrivalTime << " doesnt meet reliability requirement of any machine "  <<endl;
-                }
-                else
-                {
-                    // cout << "Task arriving at " << it->arrivalTime << " from user "
-                    // << it->userInformation << " can't be scheduled." << endl;
                 }
                 num_jobs_not_scheduled++;
                 it = waiting_area.erase(it); // Erase current task and move iterator to the next
@@ -242,14 +223,11 @@ public:
                 ++it; // Move to the next task
             }
         }
-        // sort the unscheduled tasks
-        // sort(waiting_area.begin(), waiting_area.end(), compareTasksBySRT);
         vector<pair<double, pair<int, Task *>>> candidate_tasks; // {cost,task}
         for (const int &machine_index : free_machines)
         {
             for (auto it = waiting_area.begin(); it != waiting_area.end(); it++)
             {
-                // cout<<it->reliability<<" "<<direct_trust[machine_index][it->userInformation]<<endl;
                 if (it->reliability <= direct_trust[machine_index][it->userInformation])
                 {
                     double heuristic_cost = heuristic(*it, machine_index);
@@ -270,9 +248,6 @@ public:
             int machine_index = candidate_tasks[ind].second.first;
             if (done_machine.find(machine_index) != done_machine.end())
                 continue;
-            // cout << "Scheduled task arriving at " << it->arrivalTime << " from user "
-            //  << it->userInformation << " to machine "
-            //  << machine_index << ".\n";
             free_machines_size--;
             (*it).startingTime = time;
             // At the time of assigning I have given finishing time this can be changed if the task fails in between
@@ -289,18 +264,11 @@ public:
             done_machine.insert(machine_index);
         }
     }
-    // generate 0 with probability p and 1 with probability 1-p
-    int generateRandomWithProbability(double p)
-    {
-        // random_device rd;
-        // mt19937 gen(rd());
-        // bernoulli_distribution d(p);
-        return 1;
-        // return d(generator) ? 0 : 1;
-    }
+    //starting the server
     void server_start(vector<Task> arrivingTasks) // sorted wrt arrival time
     {
         int arrival_index = 0;
+        //simulating time
         for (int time = 0; time < MaxTime; time++)
         {
             if (time % 10000 == 0 && time != 0)
@@ -336,7 +304,6 @@ public:
                     }
 
                     int result = p[time % 100];
-                    // int result = generateRandomWithProbability(probability[machine_index]);
                     if (result == 0) // means task has failed
                     {
                         machines_scheduling_history[machine_index].back().finishingTime = time;
@@ -344,7 +311,6 @@ public:
                         total_cost+=cost;
                         num_of_jobs_failed++;
                         jobs_failed[machine_index]++;
-                        // cout<<"Task arriving at "<<machines_scheduling_history[machine_index].back().arrivalTime<<" in machine "<<machine_index<<" failed"<<endl;
                         // updating direct trust here as task got completed here
                         int user_index = machines_scheduling_history[machine_index].back().userInformation;
                         direct_trust[machine_index][user_index] = ((50+num_of_successful_tasks[machine_index][user_index] * 1.0) / (100 +num_of_tasks[machine_index][user_index]));
@@ -353,7 +319,6 @@ public:
                 }
                 else if (machines_scheduling_history[machine_index].size() != 0 and time == machines_scheduling_history[machine_index].back().finishingTime)
                 { // checking whether task is successful, by checking whether startTime + executionTime is equal to time
-
                     // generate 0 with probability p and 1 with probability 1-p
                      vector<bool> p(100, 1);
                     int rand_index = 5;
@@ -374,7 +339,6 @@ public:
                         total_cost+=cost;
                         num_of_jobs_failed++;
                         jobs_failed[machine_index]++;
-                        // cout<<"Task arriving at "<<machines_scheduling_history[machine_index].back().arrivalTime<<" in machine "<<machine_index<<" failed"<<endl;
                         // updating direct trust here as task got completed here
                         int user_index = machines_scheduling_history[machine_index].back().userInformation;
                         direct_trust[machine_index][user_index] = ((50+num_of_successful_tasks[machine_index][user_index] * 1.0) / (100+num_of_tasks[machine_index][user_index]));
@@ -403,7 +367,6 @@ public:
                 temp /= num_of_users;
                 shared_trust[i] = temp;
             }
-
             // Checking if any machine is free to be scheduled
             set<int> free_machines;
             for (int machine_index = 0; machine_index < num_of_machines; machine_index++)
@@ -416,12 +379,10 @@ public:
             }
 
             free_machines_size = free_machines.size();
-
             if (free_machines_size != 0)
             {
                 schedule1(time, free_machines);
             }
-
             if (arrival_index == arrivingTasks.size() and waiting_area.size() == 0 and free_machines_size == num_of_machines)
             {
                 cout << "Ending Simulation" << endl;
@@ -438,41 +399,32 @@ public:
             }
         }
     }
+    //analysing the data 
     void analyze(double i, int code, int heuristic_num = 0)
     {
         double total_tasks = (numberOfUsers * numTasksPerUser);
-        // cout << "Numner of Jobs failed while executing are : " << num_of_jobs_failed << endl;
-        // cout << "Total Number of Jobs which failed because of deadline : " << num_jobs_not_scheduled << endl;
-        // cout << "Total Number of Jobs which failed because of reliability requirements : " << num_jobs_not_reliable << endl;
-        // for (int i = 0; i < num_of_machines; i++)
-        // {
-        //     cout << "Numner of Jobs failed on machine " << i + 1 << " is " << jobs_failed[i] << endl;
-        // }
-        // cout << "Total cost of execution is " << total_cost << endl;
-        // cout << "Total cost per scheduled task is "<< total_cost/(numberOfUsers*numTasksPerUser -  num_jobs_not_scheduled)<<endl;
         double avg_cost = (total_cost / (total_tasks - num_jobs_not_scheduled - num_of_jobs_failed));
         double reliable_req = (num_jobs_not_reliable * 1.0) / total_tasks;
         double deadline_req = (num_jobs_not_scheduled * 1.0 - num_jobs_not_reliable) / total_tasks; // jobs failed due to deadline
-        // outputFile << deadline_req << endl;
-        // cout<< heuristic_num<<" " << i << " " << deadline_req << endl;
+       
         if (code == 1)
-            data.push_back({i, (double)deadline_req});
+            data_store.push_back({i, (double)deadline_req});
         if (code == 2)
-            data.push_back({i, (double)deadline_req});
+            data_store.push_back({i, (double)deadline_req});
         if (code == 3)
-            data.push_back({i, (double)num_of_jobs_failed});
+            data_store.push_back({i, (double)num_of_jobs_failed});
         if (code == 4)
-            data.push_back({i, (double)reliable_req});
+            data_store.push_back({i, (double)reliable_req});
         if (code == 5)
-            data.push_back({i, (double)deadline_req});
+            data_store.push_back({i, (double)deadline_req});
         if (code == 6)
-            data.push_back({i, (double)deadline_req});
+            data_store.push_back({i, (double)deadline_req});
         if (code == 7)
-            data.push_back({i, avg_cost, reliable_req, deadline_req});
+            data_store.push_back({i, avg_cost, reliable_req, deadline_req});
     }
 };
 
-void writeToCSV(const vector<vector<double>> &data, const std::string &filename)
+void writeToCSV(const vector<vector<double>> &data_store, const std::string &filename)
 {
     std::ofstream outputFile(filename, std::ios::app);
 
@@ -482,7 +434,7 @@ void writeToCSV(const vector<vector<double>> &data, const std::string &filename)
         return;
     }
 
-    for (const auto &pair : data)
+    for (const auto &pair : data_store)
     {
         int i = 0;
         for (auto x : pair)
@@ -517,11 +469,6 @@ int main()
     {
         numberOfMachines = i;
         outputFile << numberOfMachines << endl;
-        // for (const auto task : arrivingTasks)
-        // {
-        //     cout << "Arrival Time: " << task.arrivalTime << ", Execution Time: " << task.executionTime
-        //          << ", User Information: " << task.userInformation << ", Relative Deadline: " << task.relativeDeadline << endl;
-        // }
         heuristic_num = 0;
         Server server1(numberOfMachines, numberOfUsers);
         server1.server_start(arrivingTasks);
@@ -547,10 +494,10 @@ int main()
         server5.server_start(arrivingTasks);
         server5.analyze(i, 1, 4);
     }
-    data.push_back({-1, -1});
-    writeToCSV(data, "output.csv");
+    data_store.push_back({-1, -1});
+    writeToCSV(data_store, "output.csv");
 
-    data.clear();
+    data_store.clear();
     start = 100;
     stop = 601;
     step = 50;
@@ -587,10 +534,10 @@ int main()
         server5.analyze(i, 2, 4);
     }
 
-    data.push_back({-1, -1});
-    writeToCSV(data, "output.csv");
+    data_store.push_back({-1, -1});
+    writeToCSV(data_store, "output.csv");
 
-    data.clear();
+    data_store.clear();
     start = 1;
     stop = 52;
     step = 5;
@@ -624,10 +571,10 @@ int main()
         server5.analyze(i, 3, 4);
     }
 
-    data.push_back({-1, -1});
-    writeToCSV(data, "output.csv");
+    data_store.push_back({-1, -1});
+    writeToCSV(data_store, "output.csv");
 
-    data.clear();
+    data_store.clear();
     start = 15;
     stop = 65;
     step = 5;
@@ -660,10 +607,10 @@ int main()
         server5.server_start(arrivingTasks);
         server5.analyze(i, 4, 4);
     }
-    data.push_back({-1, -1});
-    writeToCSV(data, "output.csv");
+    data_store.push_back({-1, -1});
+    writeToCSV(data_store, "output.csv");
 
-    data.clear();
+    data_store.clear();
     start = 100;
     stop = 1000;
     step = 100;
@@ -708,10 +655,10 @@ int main()
         server5.server_start(arrivingTasks);
         server5.analyze(i, 5, 4);
     }
-    data.push_back({-1, -1});
-    writeToCSV(data, "output.csv");
+    data_store.push_back({-1, -1});
+    writeToCSV(data_store, "output.csv");
 
-    data.clear();
+    data_store.clear();
     numTasksPerUser = 50;
     start = 15;
     stop = 80;
@@ -757,10 +704,10 @@ int main()
         server5.server_start(arrivingTasks);
         server5.analyze(i, 6, 4);
     }
-    data.push_back({-1, -1});
-    writeToCSV(data, "output.csv");
+    data_store.push_back({-1, -1});
+    writeToCSV(data_store, "output.csv");
 
-    data.clear();
+    data_store.clear();
     numTasksPerUser = 1000;
     Users user(numberOfUsers, meanArrivalRate, numTasksPerUser);
     vector<vector<Task>> allUserTask = user.generateAllUserTasks();
@@ -804,9 +751,9 @@ int main()
         server5.server_start(arrivingTasks);
         server5.analyze(i, 7, 4); // number of machines vs cost
     }
-    data.push_back({-1, -1});
-    writeToCSV(data, "output.csv");
-    data.clear();
+    data_store.push_back({-1, -1});
+    writeToCSV(data_store, "output.csv");
+    data_store.clear();
 
     numberOfMachines = 50;
     numTasksPerUser = 50;
@@ -854,10 +801,10 @@ int main()
         server5.server_start(arrivingTasks);
         server5.analyze(i, 7, 4); // number of Users vs cost
     }
-    data.push_back({-1, -1});
-    writeToCSV(data, "output.csv");
+    data_store.push_back({-1, -1});
+    writeToCSV(data_store, "output.csv");
 
-    data.clear();
+    data_store.clear();
 
     numberOfMachines = 50;
     numTasksPerUser = 50;
@@ -906,10 +853,10 @@ int main()
         server5.server_start(arrivingTasks);
         server5.analyze(i, 7, 4); // number of tasks per user vs cost
     }
-    data.push_back({-1, -1});
-    writeToCSV(data, "output.csv");
+    data_store.push_back({-1, -1});
+    writeToCSV(data_store, "output.csv");
 
-    data.clear();
+    data_store.clear();
     K = 50;
     start = 50;
     stop = 350;
@@ -944,9 +891,9 @@ int main()
         server5.server_start(arrivingTasks);
         server5.analyze(i, 7, 4); // K vs cost
     }
-    data.push_back({-1, -1});
-    writeToCSV(data, "output.csv");
-    data.clear();
+    data_store.push_back({-1, -1});
+    writeToCSV(data_store, "output.csv");
+    data_store.clear();
 
     return 0;
 }
