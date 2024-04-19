@@ -1,5 +1,5 @@
 # Trust Aware Scheduling of Online Tasks in FoG Nodes
-schedules tasks in a way that minimizes cost, meets reliability requirements, and satisfies deadline constraints while considering the trustworthiness of the nodes and users. The system consists of multiple Fog nodes, each with
+Schedules tasks in a way that minimizes cost, meets reliability requirements, and satisfies deadline constraints while considering the trustworthiness of the nodes and users. The system consists of multiple Fog nodes, each with
 shared trust values and individual trust ratings from users.
 
 ---
