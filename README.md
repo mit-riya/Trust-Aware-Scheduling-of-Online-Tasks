@@ -5,7 +5,7 @@ shared trust values and individual trust ratings from users.
 ---
 
 ## Run the code
-Run the file named server_without_forloop.cpp to get the single instance running with fixed values.
+Run the file named server_without_forloop.cpp
 ```bash
 g++ -std=c++17 server_without_forloop.cpp
 ```
@@ -13,7 +13,12 @@ g++ -std=c++17 server_without_forloop.cpp
 ./a.out
 ```
 
-Run the file named server.cpp to get all of the results used to plot the graphs
+Run the file named server.cpp 
 ```bash
 g++ -std=c++17 server.cpp
 ```
+```bash
+./a.out
+```
+
+Run the file named
