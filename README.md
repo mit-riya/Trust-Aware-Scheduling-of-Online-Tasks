@@ -21,10 +21,8 @@ g++ -std=c++17 server.cpp
 ./a.out
 ```
 
-Run the file named
-```bash
-python Plot.ipynb
-```
+Run the jupyter notebook
+
 
 ## Different Files
 ### server.cpp
